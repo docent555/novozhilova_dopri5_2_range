@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33801.447
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "novozhilova_dopri5_2_range", "novozhilova_dopri5_2_range.vfproj", "{32CC0C0B-B163-4F13-B921-7329D5A0AC23}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Debug|x64.ActiveCfg = Debug|x64
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Debug|x64.Build.0 = Debug|x64
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Debug|x86.ActiveCfg = Debug|Win32
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Debug|x86.Build.0 = Debug|Win32
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Release|x64.ActiveCfg = Release|x64
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Release|x64.Build.0 = Release|x64
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Release|x86.ActiveCfg = Release|Win32
+		{32CC0C0B-B163-4F13-B921-7329D5A0AC23}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AD6EA048-103B-4E86-9D94-DAB39F4971C6}
+	EndGlobalSection
+EndGlobal
