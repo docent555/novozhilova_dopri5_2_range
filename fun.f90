@@ -114,7 +114,7 @@ contains
       end do
       
       if (dtrh_w > 0) then
-         ndtr = (dtrb(2) - dtrb(1))/dtrh_w
+         ndtr = (dtrb(2) - dtrb(1))/dtrh_w + 1
       else
          ndtr = 1
       end if

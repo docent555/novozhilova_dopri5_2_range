@@ -27,7 +27,7 @@ program sys15f
    write (*, '(/)')
 
    start_time = dclock()
-   do i = 1, ndtr + 1
+   do i = 1, ndtr
       dtr(1) = dtr0 + (i - 1)*dtrh_w
       dtr(2) = dtr0 + (i - 1)*dtrh_w
 
