@@ -5,7 +5,7 @@ program sys15f
 
    implicit none
 
-   integer(c_int) i, j, hours, minutes, seconds
+   integer(c_int) i, j, hours, minutes, seconds, res
    real(c_double) start_time, stop_time, calc_time
    complex(c_double_complex) pc
 
@@ -31,7 +31,13 @@ program sys15f
       dtr(1) = dtr0 + (i - 1)*dtrh_w
       dtr(2) = dtr0 + (i - 1)*dtrh_w
 
-      print *, 'DTR = ', dtr(1)
+      write (path, '(f5.3,a)') dtr(1), '/'
+      !print *, 'DTR = ', dtr(1)
+      
+      res = makedirqq(path)
+      
+      call write_param(path)
+      call init_local(path)
 
       call ode4f()
       !stop_time = dclock()

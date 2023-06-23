@@ -12,6 +12,7 @@ module fun
       dtrb(2), dtrh_w, dtr0
    complex(c_double_complex) fp(2)
    logical(c_bool) wc, fok, lensm, btod, iatoi, inher
+   character(len=6) path
 
    integer(c_int) breaknum(3)
    real(c_double) phitmp0(3), phitmp1(3)
@@ -73,7 +74,7 @@ contains
                   *(Q(2)*gmp*betta**(2*inharm - 4)/gamma/betta_z)/norm
       end if      
       
-      print *, 'dtr1 = ', dtr(1), 'dtr2 = ', dtr(2)
+      !print *, 'dtr1 = ', dtr(1), 'dtr2 = ', dtr(2)
       print *, 'icu1 = ', icu(1), 'icu2 = ', icu(2)
 
       nt = tend/dt + 1
@@ -113,7 +114,7 @@ contains
          idxim(ii, :) = (/(2*ii - 1)*ne + 1:2*ii*ne/)
       end do
       
-      if (dtrh_w > 0) then
+      if (dtrh_w .ne. 0) then
          ndtr = (dtrb(2) - dtrb(1))/dtrh_w + 1
       else
          ndtr = 1
@@ -127,8 +128,88 @@ contains
       !end do
       !close (1)
       !stop
+      
+      w(:,:) = 0
 
    end subroutine init
+   
+   subroutine init_local(path)
+      implicit none
+
+      integer(c_int) ii
+      character(*) path
+
+      call read_param_local(path)
+
+      nharm = dble(inharm)
+      gamma = 1.0 + ukv/511.0
+      betta = dsqrt(1.0d0 - 1.0d0/(gamma*gamma))
+      betta2 = 1.0d0 - 1.0d0/(gamma*gamma)
+      betta_z = betta/dsqrt(pitch*pitch + 1.0d0)
+      betta_z2 = betta2/(pitch*pitch + 1.0d0)
+      betta_perp2 = betta2 - betta_z2
+      gmp = 0.048715056967419
+      w_op_w = 2*pi*w_op*1e9
+      c = 29979245800.0d0
+      e = 4.803e-10
+      m = 9.1093837015e-28
+
+      if (lensm .eq. .true.) zex_w = betta_perp2/2.0d0/betta_z*w_op_w*zex/nharm/c
+      print *, 'Zex = ', zex_w
+
+      if (btod .eq. .true.) then
+         w_n(1) = e*B(1)/(m*c)*10000.0d0
+         dtr(1) = (2.0/betta_perp2)*(1.0 - (2.0*w_n(1))/(gamma*w_op_w))
+         w_n(2) = e*B(2)/(m*c)*10000.0d0
+         dtr(2) = (2.0/betta_perp2)*(1.0 - (2.0*w_n(2))/(gamma*w_op_w))
+      end if                        
+
+      if (iatoi .eq. .true.) then         
+         nfac = factorial(inharm)         
+         icu(1) = 2.35/10000*IA(1)*(nharm**(inharm + 1)/2.0**(inharm - 1)/nfac)**2 &
+                  *(Q(1)*gmp*betta**(2*inharm - 4)/gamma/betta_z)/norm
+         icu(2) = 2.35/10000*IA(2)*(nharm**(inharm + 1)/2.0**(inharm - 1)/nfac)**2 &
+                  *(Q(2)*gmp*betta**(2*inharm - 4)/gamma/betta_z)/norm
+      end if      
+      
+      print *, 'dtr1 = ', dtr(1), 'dtr2 = ', dtr(2)      
+
+      nt = tend/dt + 1
+      nz = zex_w/dz + 1
+
+      neqp = 4*ne
+      nrdp = 4*ne
+      lworkp = 8*neqp + 5*nrdp + 21
+      liworkp = nrdp + 21
+
+      neqf = 6
+      nrdf = 6
+      lworkf = 11*neqf + 8*nrdf + 21
+      liworkf = nrdf + 21      
+
+      f(1, 1) = f10
+      f(2, 1) = p10
+      f(3, 1) = f20
+      f(4, 1) = p20
+      f(5, 1) = f30
+      f(6, 1) = p30
+
+      do ii = 1, nt
+         tax(ii) = (ii - 1)*dt
+      end do
+
+      do ii = 1, nz
+         zax(ii) = (ii - 1)*dz
+      end do
+
+      call calc_u(u, zex_w, nz, zax)
+
+      do ii = 1, 2
+         idxre(ii, :) = (/2*(ii - 1)*ne + 1:(2*ii - 1)*ne/)
+         idxim(ii, :) = (/(2*ii - 1)*ne + 1:2*ii*ne/)
+      end do
+      
+   end subroutine init_local
    
    subroutine norma(norm)
       use, intrinsic :: iso_c_binding, only: c_double, c_double_complex, c_int
@@ -264,7 +345,51 @@ contains
          pause
          stop
       end if
-   end subroutine deallocate_arrays
+   end subroutine deallocate_arrays   
+     
+   subroutine read_param_local(path) bind(c, name='read_param_local')
+      use, intrinsic :: iso_c_binding
+      import
+      implicit none
+
+      namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, &
+         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc, fok, inharm, ukv, &
+         w_op, lensm, btod, b1, b2, iatoi, ia1, ia2, &
+         dtr1, dtr2
+
+      real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dcir1, dcir2, r1, r2, b1, b2, ia1, ia2, dtr1, dtr2
+      character(*) path
+
+      open (unit=1, file=path//'input_fortran.in', status='old', err=101)
+      read (unit=1, nml=param, err=102)
+      close (unit=1)
+
+      q(1) = q1
+      q(2) = q2
+      q(3) = q3
+      icu(1) = i1
+      icu(2) = i2
+      th(1) = th1
+      th(2) = th2
+      a(1) = a1
+      a(2) = a2
+      dtr(1) = dtr1
+      dtr(2) = dtr2
+      dcir(1) = dcir1
+      dcir(2) = dcir2
+      r(1) = r1
+      r(2) = r2
+      b(1) = b1
+      b(2) = b2
+      ia(1) = ia1
+      ia(2) = ia2
+
+      write (*, nml=param)
+
+      return
+101   print *, "error of file open"; pause; stop
+102   print *, 'error of reading file "input_fortran.in"'; pause; stop
+   end subroutine read_param_local   
 
    subroutine read_param() bind(c, name='read_param')
       use, intrinsic :: iso_c_binding
@@ -301,9 +426,9 @@ contains
       b(2) = b2
       ia(1) = ia1
       ia(2) = ia2
-      dtrh_w = dtrh_w
+      dtrh_w = dtrh
 
-      write (*, nml=param)
+      !write (*, nml=param)
 
       return
 101   print *, "error of file open"; pause; stop
@@ -318,19 +443,13 @@ contains
       namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, &
          dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc, fok, inharm, ukv, &
          w_op, lensm, btod, b1, b2, iatoi, ia1, ia2, &
-         dtrb, dtrh, inher
+         dtr1, dtr2
 
       character(*) path
-      real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2, b1, b2, ia1, ia2, dtrh
-      !logical wc
-
-      open (unit=1, file='input_fortran.in', status='old', err=101)
-      !print *, 'OK1'
-      read (unit=1, nml=param, err=102)
-      close (unit=1)
-
-      dtrb(1) = dtr(1)
-      dtrb(2) = 0
+      real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dcir1, dcir2, r1, r2, b1, b2, ia1, ia2, dtr1, dtr2    
+      
+      dtr1 = dtr(1)
+      dtr2 = dtr(2)
       i1 = icu(1)
       i2 = icu(2)
       q1 = q(1)
@@ -347,16 +466,14 @@ contains
       b1 = b(1)
       b2 = b(2)
       ia1 = ia(1)
-      ia2 = ia(2)
-      dtrh = 0
+      ia2 = ia(2)      
 
-      open (unit=1, file=path//'input_fortran.in', err=101)
-      !print *, 'OK2'
+      open (unit=1, file=path//'input_fortran.in', err=101)     
       write (1, nml=param)
       close (unit=1)
-      
-      write (*, nml=param)
-      
+
+      !write (*, nml=param)
+
       return
 101   print *, "error of file open"; pause; stop
 102   print *, 'error of reading file "input_fortran.in"'; pause; stop
@@ -366,27 +483,21 @@ contains
 
       implicit none
 
-      integer i, j, res
-      character(len=6) path
-
-      write (path, '(f5.3,a)') dtr(1), '/'
-
-      res = makedirqq(path)
-
-
-      if (wc .eq. .true.) then
-         w(:, 1) = 0
-         do i = 2, nt
-            do j = 1, 3
-               !w(j, i - 1) = dimag(log(f(2*j - 1, i)*cdexp(ic*f(2*j, i))/(f(2*j - 1, i - 1)*cdexp(ic*f(2*j, i - 1)))))/dt
-               w(j, i) = (f(2*j, i) - f(2*j, i - 1))/dt
-            end do
-         end do
-         print *, 'Frequency calculated from phase. ( WC = ', wc, ')'
-      elseif (wc .eq. .false.) then
+      integer i, j
+      
+      !if (wc .eq. .true.) then
+      !   w(:, 1) = 0
+      !   do i = 2, nt
+      !      do j = 1, 3
+      !         !w(j, i - 1) = dimag(log(f(2*j - 1, i)*cdexp(ic*f(2*j, i))/(f(2*j - 1, i - 1)*cdexp(ic*f(2*j, i - 1)))))/dt
+      !         w(j, i) = (f(2*j, i) - f(2*j, i - 1))/dt
+      !      end do
+      !   end do
+      !   print *, 'Frequency calculated from phase. ( WC = ', wc, ')'
+      !elseif (wc .eq. .false.) then
          call freq()
          print *, 'Frequency calculated from RHS. ( WC = ', wc, ')'
-      end if
+      !end if
 
       phi(:, 1) = 0; 
       do i = 2, nt
@@ -439,7 +550,7 @@ contains
       open (1, file=path//'F.dat')
       do i = 1, nt
          !write (1, '(4e17.8)') tax(i), dabs(f(1, i)), dabs(f(3, i)), dabs(f(5, i))
-         write (1, '(4e17.8)') tax(i), f(1, i), f(3, i), f(5, i)
+         write (1, '(4f12.6)') tax(i), f(1, i), f(3, i), f(5, i)
       end do
       close (1)
 
@@ -448,39 +559,39 @@ contains
          fcomp(1) = f(2*1 - 1, i)*cdexp(ic*f(2*1, i))
          fcomp(2) = f(2*2 - 1, i)*cdexp(ic*f(2*2, i))
          fcomp(3) = f(2*3 - 1, i)*cdexp(ic*f(2*3, i))
-         write (13, '(7e17.8)') tax(i), dreal(fcomp(1)), dimag(fcomp(1)), dreal(fcomp(2)), dimag(fcomp(2)), &
+         write (13, '(7f12.6)') tax(i), dreal(fcomp(1)), dimag(fcomp(1)), dreal(fcomp(2)), dimag(fcomp(2)), &
             dreal(fcomp(3)), dimag(fcomp(3))
       end do
       close (13)
 
       open (2, file=path//'E.dat')
       do i = 1, nt
-         write (2, '(5e17.8)') tax(i), eta(1, i), etag(1, i), eta(2, i), etag(2, i)
+         write (2, '(5f12.6)') tax(i), eta(1, i), etag(1, i), eta(2, i), etag(2, i)
       end do
       close (2)
 
       open (3, file=path//'W.dat')
       do i = 1, nt
-         write (3, '(4e17.8)') tax(i), w(1, i), w(2, i), w(3, i)
+         write (3, '(4f12.6)') tax(i), w(1, i), w(2, i), w(3, i)
       end do
       close (3)
 
       open (1, file=path//'P.dat')
       do i = 1, nt
          !write (1, '(4e17.8)') tax(i), phi(1, i), phi(2, i), phi(3, i)
-         write (1, '(4e17.8)') tax(i), f(2, i), f(4, i), f(6, i)
+         write (1, '(4f12.6)') tax(i), f(2, i), f(4, i), f(6, i)
       end do
       close (1)
 
       open (1, file=path//'POS.dat')
       do i = 1, nt
-         write (1, '(4e17.8)') tax(i), phios(1, i), phios(2, i), phios(3, i)
+         write (1, '(4f12.6)') tax(i), phios(1, i), phios(2, i), phios(3, i)
       end do
       close (1)
 
       open (3, file=path//'WOS.dat')
       do i = 1, nt - 1
-         write (3, '(4e17.8)') tax(i + 1), wos(1, i), wos(2, i), wos(3, i)
+         write (3, '(4f12.6)') tax(i + 1), wos(1, i), wos(2, i), wos(3, i)
       end do
       close (3)
 
